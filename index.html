@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hitomi Customer Manager</title>
+
+<style>
+body{
+font-family:sans-serif;
+max-width:900px;
+margin:auto;
+padding:20px;
+background:#f5f5f5;
+}
+
+h1{
+text-align:center;
+}
+
+.card{
+background:white;
+padding:15px;
+margin-bottom:15px;
+border-radius:10px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+
+input,textarea{
+width:100%;
+padding:10px;
+margin-top:5px;
+margin-bottom:10px;
+box-sizing:border-box;
+}
+
+button{
+padding:10px 15px;
+margin:5px;
+cursor:pointer;
+}
+
+.customer{
+background:white;
+padding:15px;
+margin-bottom:10px;
+border-radius:10px;
+}
+
+.actions{
+margin-top:10px;
+}
+
+.search-box{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+}
+
+@media(max-width:600px){
+.search-box{
+grid-template-columns:1fr;
+}
+}
+</style>
+</head>
+
+<body>
+
+<h1>👥 Hitomi Customer Manager</h1>
+
+<div class="card">
+
+<h3>顧客登録</h3>
+
+<input id="name" placeholder="名前">
+
+<input id="phone" placeholder="電話番号">
+
+<input id="lastVisit" type="date">
+
+<textarea id="memo" rows="4" placeholder="メモ"></textarea>
+
+<button onclick="saveCustomer()">保存</button>
+
+</div>
+
+<div class="card">
+
+<h3>検索</h3>
+
+<div class="search-box">
+
+<input id="searchName" placeholder="名前検索" oninput="renderCustomers()">
+
+<input id="searchPhone" placeholder="電話番号検索" oninput="renderCustomers()">
+
+<input id="searchMonth" type="month" oninput="renderCustomers()">
+
+</div>
+
+</div>
+
+<div class="card">
+
+<button onclick="downloadBackup()">バックアップ保存</button>
+
+<input type="file" id="backupFile" onchange="loadBackup()">
+
+</div>
+
+<div id="customerList"></div>
+
+<script>
+
+let customers =
+JSON.parse(localStorage.getItem("customers")) || [];
+
+function saveToStorage(){
+localStorage.setItem(
+"customers",
+JSON.stringify(customers)
+);
+}
+
+function saveCustomer(){
+
+const name =
+document.getElementById("name").value;
+
+if(!name){
+alert("名前を入力してください");
+return;
+}
+
+customers.unshift({
+
+id:Date.now(),
+
+name:name,
+
+phone:
+document.getElementById("phone").value,
+
+lastVisit:
+document.getElementById("lastVisit").value,
+
+memo:
+document.getElementById("memo").value,
+
+created:
+new Date().toLocaleString()
+
+});
+
+saveToStorage();
+
+document.getElementById("name").value="";
+document.getElementById("phone").value="";
+document.getElementById("lastVisit").value="";
+document.getElementById("memo").value="";
+
+renderCustomers();
+
+}
+
+function deleteCustomer(id){
+
+if(!confirm("削除しますか？")) return;
+
+customers =
+customers.filter(c=>c.id!==id);
+
+saveToStorage();
+
+renderCustomers();
+
+}
+
+function editCustomer(id){
+
+const c =
+customers.find(x=>x.id===id);
+
+const name =
+prompt("名前",c.name);
+
+if(name===null) return;
+
+const phone =
+prompt("電話番号",c.phone);
+
+if(phone===null) return;
+
+const lastVisit =
+prompt("前回来店日",c.lastVisit);
+
+if(lastVisit===null) return;
+
+const memo =
+prompt("メモ",c.memo);
+
+if(memo===null) return;
+
+c.name=name;
+c.phone=phone;
+c.lastVisit=lastVisit;
+c.memo=memo;
+
+saveToStorage();
+
+renderCustomers();
+
+}
+
+function renderCustomers(){
+
+const nameSearch =
+document.getElementById("searchName").value.toLowerCase();
+
+const phoneSearch =
+document.getElementById("searchPhone").value;
+
+const monthSearch =
+document.getElementById("searchMonth").value;
+
+let html="";
+
+customers
+.filter(c=>{
+
+const nameMatch =
+c.name.toLowerCase().includes(nameSearch);
+
+const phoneMatch =
+c.phone.includes(phoneSearch);
+
+const monthMatch =
+!monthSearch ||
+(c.lastVisit &&
+c.lastVisit.startsWith(monthSearch));
+
+return nameMatch &&
+phoneMatch &&
+monthMatch;
+
+})
+.forEach(c=>{
+
+html += `
+<div class="customer">
+
+<b>${c.name}</b><br>
+
+📞 ${c.phone}<br>
+
+📅 前回来店:
+${c.lastVisit || "-"}<br>
+
+📝 ${c.memo}<br>
+
+🕒 登録:
+${c.created}
+
+<div class="actions">
+
+<button onclick="editCustomer(${c.id})">
+編集
+</button>
+
+<button onclick="deleteCustomer(${c.id})">
+削除
+</button>
+
+</div>
+
+</div>
+`;
+
+});
+
+document.getElementById("customerList")
+.innerHTML = html;
+
+}
+
+function downloadBackup(){
+
+const blob =
+new Blob(
+[JSON.stringify(customers)],
+{type:"application/json"}
+);
+
+const a =
+document.createElement("a");
+
+a.href =
+URL.createObjectURL(blob);
+
+a.download =
+"customer_backup.json";
+
+a.click();
+
+}
+
+function loadBackup(){
+
+const file =
+document.getElementById("backupFile").files[0];
+
+if(!file) return;
+
+const reader =
+new FileReader();
+
+reader.onload = e=>{
+
+customers =
+JSON.parse(e.target.result);
+
+saveToStorage();
+
+renderCustomers();
+
+alert("復元完了");
+
+};
+
+reader.readAsText(file);
+
+}
+
+renderCustomers();
+
+</script>
+
+</body>
+</html>
