@@ -40,27 +40,6 @@ border:1px solid #ccc;
 border-radius:8px;
 }
 
-button{
-padding:10px 14px;
-margin:4px;
-cursor:pointer;
-border:none;
-border-radius:8px;
-background:#333;
-color:white;
-font-size:15px;
-}
-button{
-padding:10px 14px;
-margin:4px;
-cursor:pointer;
-border:none;
-border-radius:8px;
-background:#333;
-color:white;
-font-size:15px;
-}
-
 label{
 display:block;
 font-weight:bold;
@@ -68,15 +47,57 @@ margin-top:10px;
 margin-bottom:4px;
 }
 
-button.sub{
-background:#777;
+button{
+padding:10px 14px;
+margin:4px;
+cursor:pointer;
+border:none;
+border-radius:8px;
+background:#333;
+color:white;
+font-size:15px;
 }
+
 button.sub{
 background:#777;
 }
 
 button.danger{
 background:#b00020;
+}
+
+button.ngbtn{
+background:#d35400;
+}
+
+.customer.ng{
+border:2px solid #b00020;
+background:#fff0f0;
+}
+
+.ng-label{
+display:inline-block;
+padding:4px 8px;
+margin:3px 3px 3px 0;
+background:#b00020;
+color:white;
+border-radius:999px;
+font-size:13px;
+font-weight:bold;
+}
+
+.checkbox-row{
+display:flex;
+align-items:center;
+gap:8px;
+margin-top:10px;
+margin-bottom:10px;
+font-weight:bold;
+}
+
+.checkbox-row input{
+width:auto;
+margin:0;
 }
 
 .customer b{
@@ -135,6 +156,7 @@ padding:10px;
 
 <label>電話番号</label>
 <input id="phone" placeholder="電話番号">
+
 <label>初回来店日</label>
 <input id="firstVisit" type="date">
 
@@ -144,12 +166,19 @@ padding:10px;
 <label>次回予約日</label>
 <input id="nextVisit" type="date">
 
-
 <label>来店回数</label>
 <input id="visitCount" type="number" min="0" placeholder="来店回数">
 
 <label>メモ</label>
-<textarea id="memo" rows="4" placeholder="特徴・好み・会話内容・NG事項・注意点など"></textarea>
+<textarea id="memo" rows="4" placeholder="特徴・好み・会話内容・注意点など"></textarea>
+
+<label class="checkbox-row">
+<input id="isNg" type="checkbox">
+NG顧客にする
+</label>
+
+<label>NG理由</label>
+<textarea id="ngReason" rows="3" placeholder="NG理由・注意内容"></textarea>
 
 <button onclick="saveCustomer()">保存</button>
 <button class="sub" onclick="clearForm()">入力クリア</button>
@@ -163,7 +192,6 @@ padding:10px;
 <input id="searchPhone" placeholder="電話番号検索" oninput="renderCustomers()">
 <input id="searchMonth" type="month" oninput="renderCustomers()">
 <input id="searchMemo" placeholder="メモ検索" oninput="renderCustomers()">
-<input id="searchTherapist" placeholder="担当・指名検索" oninput="renderCustomers()">
 
 <select id="sortMode" onchange="renderCustomers()">
 <option value="lastVisitDesc">最終来店が新しい順</option>
@@ -172,6 +200,9 @@ padding:10px;
 <option value="createdDesc">登録が新しい順</option>
 </select>
 </div>
+
+<button class="ngbtn" onclick="showNgOnly()">NG一覧</button>
+<button class="sub" onclick="showAllCustomers()">全員表示</button>
 
 <p class="small">来た月検索は「最終来店日」を基準に検索します。</p>
 </div>
@@ -188,12 +219,15 @@ padding:10px;
 <script>
 
 let customers =
+JSON.parse(localStorage.getItem("customers_v4")) ||
 JSON.parse(localStorage.getItem("customers_v3")) ||
 JSON.parse(localStorage.getItem("customers")) ||
 [];
 
+let ngOnly = false;
+
 function saveToStorage(){
-localStorage.setItem("customers_v3", JSON.stringify(customers));
+localStorage.setItem("customers_v4", JSON.stringify(customers));
 }
 
 function clearForm(){
@@ -202,9 +236,10 @@ document.getElementById("phone").value="";
 document.getElementById("firstVisit").value="";
 document.getElementById("lastVisit").value="";
 document.getElementById("nextVisit").value="";
-document.getElementById("therapist").value="";
 document.getElementById("visitCount").value="";
 document.getElementById("memo").value="";
+document.getElementById("isNg").checked=false;
+document.getElementById("ngReason").value="";
 }
 
 function saveCustomer(){
@@ -225,9 +260,10 @@ phone:document.getElementById("phone").value.trim(),
 firstVisit:document.getElementById("firstVisit").value,
 lastVisit:document.getElementById("lastVisit").value,
 nextVisit:document.getElementById("nextVisit").value,
-therapist:document.getElementById("therapist").value.trim(),
 visitCount:Number.isFinite(countValue) && countValue > 0 ? countValue : 1,
 memo:document.getElementById("memo").value.trim(),
+isNg:document.getElementById("isNg").checked,
+ngReason:document.getElementById("ngReason").value.trim(),
 created:new Date().toLocaleString(),
 updated:new Date().toLocaleString()
 });
@@ -268,23 +304,27 @@ if(lastVisit===null) return;
 const nextVisit = prompt("次回予約日 例: 2026-07-20", c.nextVisit || "");
 if(nextVisit===null) return;
 
-const therapist = prompt("担当・指名", c.therapist || "");
-if(therapist===null) return;
-
 const visitCount = prompt("来店回数", c.visitCount || 1);
 if(visitCount===null) return;
 
-const memo = prompt("メモ・特徴・好み・会話内容・NG事項・注意点など", c.memo || "");
+const memo = prompt("メモ・特徴・好み・会話内容・注意点など", c.memo || "");
 if(memo===null) return;
+
+const isNgText = prompt("NG顧客にしますか？ yes / no", c.isNg ? "yes" : "no");
+if(isNgText===null) return;
+
+const ngReason = prompt("NG理由", c.ngReason || "");
+if(ngReason===null) return;
 
 c.name = name.trim();
 c.phone = phone.trim();
 c.firstVisit = firstVisit.trim();
 c.lastVisit = lastVisit.trim();
 c.nextVisit = nextVisit.trim();
-c.therapist = therapist.trim();
 c.visitCount = Number(visitCount) || 1;
 c.memo = memo.trim();
+c.isNg = isNgText.toLowerCase() === "yes" || isNgText === "はい" || isNgText === "1";
+c.ngReason = ngReason.trim();
 c.updated = new Date().toLocaleString();
 
 saveToStorage();
@@ -334,13 +374,22 @@ const time = new Date(value).getTime();
 return isNaN(time) ? 0 : time;
 }
 
+function showNgOnly(){
+ngOnly = true;
+renderCustomers();
+}
+
+function showAllCustomers(){
+ngOnly = false;
+renderCustomers();
+}
+
 function renderCustomers(){
 
 const nameSearch = document.getElementById("searchName").value.toLowerCase();
 const phoneSearch = document.getElementById("searchPhone").value;
 const monthSearch = document.getElementById("searchMonth").value;
 const memoSearch = document.getElementById("searchMemo").value.toLowerCase();
-const therapistSearch = document.getElementById("searchTherapist").value.toLowerCase();
 const sortMode = document.getElementById("sortMode").value;
 
 let html="";
@@ -352,12 +401,13 @@ const phoneMatch = (c.phone || "").includes(phoneSearch);
 
 const monthMatch =
 !monthSearch ||
-(c.lastVisit && c.lastVisit.startsWith(monthSearch));
+(c.lastVisit &&
+c.lastVisit.startsWith(monthSearch));
 
 const memoMatch = (c.memo || "").toLowerCase().includes(memoSearch);
-const therapistMatch = (c.therapist || "").toLowerCase().includes(therapistSearch);
+const ngMatch = !ngOnly || c.isNg === true;
 
-return nameMatch && phoneMatch && monthMatch && memoMatch && therapistMatch;
+return nameMatch && phoneMatch && monthMatch && memoMatch && ngMatch;
 
 });
 
@@ -374,19 +424,19 @@ return Number(b.id || 0) - Number(a.id || 0);
 return getSortDate(b.lastVisit) - getSortDate(a.lastVisit);
 });
 
-html += `<p class="small">表示件数: ${filtered.length}件</p>`;
+html += `<p class="small">表示件数: ${filtered.length}件 ${ngOnly ? "（NG一覧）" : ""}</p>`;
 
 filtered.forEach(c=>{
 
 html += `
-<div class="customer">
+<div class="customer ${c.isNg ? 'ng' : ''}">
 
 <b>${escapeHtml(c.name || "")}</b><br>
 
 <span class="badge">📞 ${escapeHtml(c.phone || "-")}</span>
-<span class="badge">👤 ${escapeHtml(c.therapist || "担当なし")}</span>
 <span class="badge">🔁 来店 ${c.visitCount || 0}回</span>
 <span class="badge">⏳ 最終来店から ${daysFrom(c.lastVisit)}</span>
+${c.isNg ? '<span class="ng-label">⚠️ NG</span>' : ''}
 <br>
 
 📅 初回来店: ${escapeHtml(c.firstVisit || "-")}<br>
@@ -394,6 +444,7 @@ html += `
 📌 次回予約: ${escapeHtml(c.nextVisit || "-")}<br>
 
 <div class="memo">📝 ${escapeHtml(c.memo || "-").replace(/\n/g,"<br>")}</div>
+${c.isNg ? `<div class="memo"><b>⚠️ NG理由:</b> ${escapeHtml(c.ngReason || "-").replace(/\n/g,"<br>")}</div>` : ""}
 
 <span class="small">
 🕒 登録: ${escapeHtml(c.created || "-")}<br>
