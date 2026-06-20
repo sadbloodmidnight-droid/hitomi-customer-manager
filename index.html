@@ -50,7 +50,27 @@ background:#333;
 color:white;
 font-size:15px;
 }
+button{
+padding:10px 14px;
+margin:4px;
+cursor:pointer;
+border:none;
+border-radius:8px;
+background:#333;
+color:white;
+font-size:15px;
+}
 
+label{
+display:block;
+font-weight:bold;
+margin-top:10px;
+margin-bottom:4px;
+}
+
+button.sub{
+background:#777;
+}
 button.sub{
 background:#777;
 }
@@ -110,7 +130,10 @@ padding:10px;
 <div class="card">
 <h3>顧客登録</h3>
 
+<label>名前・呼び名</label>
 <input id="name" placeholder="名前・呼び名">
+
+<label>電話番号</label>
 <input id="phone" placeholder="電話番号">
 <label>初回来店日</label>
 <input id="firstVisit" type="date">
@@ -120,9 +143,14 @@ padding:10px;
 
 <label>次回予約日</label>
 <input id="nextVisit" type="date">
+<label>担当・指名</label>
 <input id="therapist" placeholder="担当・指名">
+
+<label>来店回数</label>
 <input id="visitCount" type="number" min="0" placeholder="来店回数">
-<textarea id="memo" rows="4" placeholder="メモ・特徴・好み・会話内容・NG事項・注意点など"></textarea>
+
+<label>メモ</label>
+<textarea id="memo" rows="4" placeholder="特徴・好み・会話内容・NG事項・注意点など"></textarea>
 
 <button onclick="saveCustomer()">保存</button>
 <button class="sub" onclick="clearForm()">入力クリア</button>
