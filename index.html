@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hitomi Customer Manager</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff">
+
+<style>
+body{
+font-family:sans-serif;
+max-width:900px;
+margin:auto;
+padding:16px;
+background:#f5f5f5;
+}
+
+h1{
+text-align:center;
+font-size:26px;
+}
+
+.app-header{
+position:relative;
+display:flex;
+align-items:center;
+justify-content:center;
+margin-bottom:14px;
+}
+
+.app-header h1{
+margin:0;
+padding:0 80px;
+}
+
+.settings-btn{
+position:absolute;
+right:0;
+top:50%;
+transform:translateY(-50%);
+background:#555;
+}
+
+.card,.customer{
+background:white;
+padding:15px;
+margin-bottom:14px;
+border-radius:12px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+input,textarea,select{
+width:100%;
+padding:11px;
+margin-top:5px;
+margin-bottom:10px;
+box-sizing:border-box;
+font-size:16px;
+border:1px solid #ccc;
+border-radius:8px;
+}
+
+label{
+display:block;
+font-weight:bold;
+margin-top:10px;
+margin-bottom:4px;
+}
+
+button{
+padding:10px 14px;
+margin:4px;
+cursor:pointer;
+border:none;
+border-radius:8px;
+background:#333;
+color:white;
+font-size:15px;
+}
+
+button.sub{
+background:#777;
+}
+
+button.danger{
+background:#b00020;
+}
+
+button.ngbtn{
+background:#d35400;
+}
+
+.customer.ng{
+border:2px solid #b00020;
+background:#fff0f0;
+}
+
+.ng-label{
+display:inline-block;
+padding:4px 8px;
+margin:3px 3px 3px 0;
+background:#b00020;
+color:white;
+border-radius:999px;
+font-size:13px;
+font-weight:bold;
+}
+
+.checkbox-row{
+display:flex;
+align-items:center;
+gap:8px;
+margin-top:10px;
+margin-bottom:10px;
+font-weight:bold;
+}
+
+.checkbox-row input{
+width:auto;
+margin:0;
+}
+
+.customer b{
+font-size:20px;
+}
+
+.actions{
+margin-top:10px;
+}
+
+.search-box{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+}
+
+.small{
+color:#666;
+font-size:14px;
+}
+
+.badge{
+display:inline-block;
+padding:4px 8px;
+margin:3px 3px 3px 0;
+background:#eee;
+border-radius:999px;
+font-size:13px;
+}
+
+.memo{
+margin-top:8px;
+line-height:1.5;
+}
+
+body.modal-open{
+overflow:hidden;
+}
+
+.modal-overlay{
+position:fixed;
+inset:0;
+display:none;
+align-items:flex-start;
+justify-content:center;
+padding:16px;
+box-sizing:border-box;
+background:rgba(0,0,0,0.45);
+overflow:auto;
+z-index:9999;
+}
+
+.modal-overlay.active{
+display:flex;
+}
+
+.modal-panel{
+width:min(100%,560px);
+margin:auto 0;
+background:white;
+padding:15px;
+border-radius:12px;
+box-shadow:0 6px 24px rgba(0,0,0,0.25);
+}
+
+.modal-header{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
+margin-bottom:8px;
+}
+
+.modal-header h2{
+margin:0;
+font-size:22px;
+}
+
+.modal-actions{
+margin-top:12px;
+text-align:right;
+}
+
+.settings-actions button{
+display:block;
+width:100%;
+margin:8px 0;
+}
+
+@media(max-width:600px){
+.search-box{
+grid-template-columns:1fr;
+}
+.app-header h1{
+font-size:22px;
+padding:0 64px;
+}
+.settings-btn{
+padding:9px 11px;
+}
+.modal-overlay{
+align-items:stretch;
+padding:0;
+}
+.modal-panel{
+width:100%;
+min-height:100vh;
+margin:0;
+border-radius:0;
+padding:12px;
+box-sizing:border-box;
+}
+.modal-actions{
+display:grid;
+gap:8px;
+text-align:left;
+}
+.modal-actions button{
+width:100%;
+margin:0;
+}
+body{
+padding:10px;
+}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app-header">
+<h1>👥 Customer Manager</h1>
+<button class="settings-btn" onclick="openSettingsWindow()">設定</button>
+</div>
+
+<div class="card">
+<h3>顧客登録</h3>
+<button onclick="openNewCustomerWindow()">顧客登録</button>
+</div>
+
+<div class="card">
+<h3>検索</h3>
+
+<div class="search-box">
+<input id="searchName" placeholder="名前検索" oninput="renderCustomers()">
+<input id="searchPhone" placeholder="電話番号検索" inputmode="numeric" pattern="[0-9]*" oninput="checkHalfWidthPhoneInput(this); renderCustomers()">
+<input id="searchMonth" type="month" oninput="renderCustomers()">
+<input id="searchMemo" placeholder="メモ検索" oninput="renderCustomers()">
+
+<select id="sortMode" onchange="renderCustomers()">
+<option value="lastVisitDesc">最終来店が新しい順</option>
+<option value="lastVisitAsc">最終来店が古い順</option>
+<option value="visitCountDesc">来店回数が多い順</option>
+<option value="createdDesc">登録が新しい順</option>
+</select>
+</div>
+
+<button class="ngbtn" onclick="showNgOnly()">NG一覧</button>
+<button class="sub" onclick="showAllCustomers()">全員表示</button>
+
+<p class="small">来た月検索は「最終来店日」を基準に検索します。</p>
+</div>
+
+<div id="customerList"></div>
+
+<div id="newCustomerModal" class="modal-overlay" aria-hidden="true">
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="newCustomerTitle">
+<div class="modal-header">
+<h2 id="newCustomerTitle">顧客登録</h2>
+<button type="button" class="sub" onclick="closeNewCustomerModal()">閉じる</button>
+</div>
+
+<form id="newCustomerForm">
+<label>名前・呼び名</label>
+<input id="newName" required placeholder="名前・呼び名">
+
+<label>電話番号</label>
+<input id="newPhone" placeholder="電話番号" inputmode="numeric" pattern="[0-9]*" oninput="checkHalfWidthPhoneInput(this)">
+
+<label>初回来店日</label>
+<input id="newFirstVisit" type="date">
+
+<label>最終来店日</label>
+<input id="newLastVisit" type="date">
+
+<label>次回予約日</label>
+<input id="newNextVisit" type="date">
+
+<label>来店回数</label>
+<input id="newVisitCount" type="number" min="0" placeholder="来店回数">
+
+<label>メモ</label>
+<textarea id="newMemo" rows="5" placeholder="特徴・好み・会話内容・注意点など"></textarea>
+
+<label class="checkbox-row">
+<input id="newIsNg" type="checkbox">
+NG顧客にする
+</label>
+
+<label>NG理由</label>
+<textarea id="newNgReason" rows="3" placeholder="NG理由・注意内容"></textarea>
+
+<div class="modal-actions">
+<button type="submit">保存</button>
+<button type="button" class="sub" onclick="closeNewCustomerModal()">キャンセル</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="editCustomerModal" class="modal-overlay" aria-hidden="true">
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="editCustomerTitle">
+<div class="modal-header">
+<h2 id="editCustomerTitle">顧客編集</h2>
+<button type="button" class="sub" onclick="closeEditCustomerModal()">閉じる</button>
+</div>
+
+<form id="editCustomerForm">
+<label>名前・呼び名</label>
+<input id="editName" required>
+
+<label>電話番号</label>
+<input id="editPhone" inputmode="numeric" pattern="[0-9]*" oninput="checkHalfWidthPhoneInput(this)">
+
+<label>初回来店日</label>
+<input id="editFirstVisit" type="date">
+
+<label>最終来店日</label>
+<input id="editLastVisit" type="date">
+
+<label>次回予約日</label>
+<input id="editNextVisit" type="date">
+
+<label>来店回数</label>
+<input id="editVisitCount" type="number" min="0">
+
+<label>メモ</label>
+<textarea id="editMemo" rows="5"></textarea>
+
+<label class="checkbox-row">
+<input id="editIsNg" type="checkbox">
+NG顧客にする
+</label>
+
+<label>NG理由</label>
+<textarea id="editNgReason" rows="3"></textarea>
+
+<div class="modal-actions">
+<button type="submit">保存</button>
+<button type="button" class="sub" onclick="closeEditCustomerModal()">キャンセル</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="settingsModal" class="modal-overlay" aria-hidden="true">
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+<div class="modal-header">
+<h2 id="settingsTitle">設定</h2>
+<button type="button" class="sub" onclick="closeSettingsModal()">閉じる</button>
+</div>
+
+<div class="settings-actions">
+<button type="button" onclick="downloadBackup()">バックアップ保存</button>
+<button type="button" class="sub" onclick="requestBackupLoadFromSettings()">バックアップ読込</button>
+<input type="file" id="settingsBackupFile" accept="application/json,.json" style="display:none">
+</div>
+<p class="small">電話番号入りなので、バックアップファイルの扱いには注意してください。</p>
+</div>
+</div>
+
+<script>
+
+let customers =
+JSON.parse(localStorage.getItem("customers_v4")) ||
+JSON.parse(localStorage.getItem("customers_v3")) ||
+JSON.parse(localStorage.getItem("customers")) ||
+[];
+
+let ngOnly = false;
+let editingCustomerId = null;
+
+function saveToStorage(){
+localStorage.setItem("customers_v4", JSON.stringify(customers));
+}
+
+function checkHalfWidthPhoneInput(input, dialogWindow){
+
+const dialog = dialogWindow || window;
+const originalValue = input.value;
+const halfWidthNumberValue = originalValue.replace(/[^0-9]/g, "");
+
+if(originalValue !== halfWidthNumberValue){
+input.value = halfWidthNumberValue;
+dialog.alert("電話番号は半角数字で入力してください");
+input.focus();
+return false;
+}
+
+return true;
+
+}
+
+function openNewCustomerWindow(){
+
+resetNewCustomerForm();
+
+const modal = document.getElementById("newCustomerModal");
+
+modal.classList.add("active");
+modal.setAttribute("aria-hidden", "false");
+document.body.classList.add("modal-open");
+document.getElementById("newName").focus();
+
+}
+
+function closeNewCustomerModal(){
+
+const modal = document.getElementById("newCustomerModal");
+
+modal.classList.remove("active");
+modal.setAttribute("aria-hidden", "true");
+document.body.classList.remove("modal-open");
+
+}
+
+function resetNewCustomerForm(){
+
+document.getElementById("newCustomerForm").reset();
+document.getElementById("newVisitCount").value = 1;
+
+}
+
+function getNewCustomerFromModal(){
+
+return {
+name:document.getElementById("newName").value.trim(),
+phone:document.getElementById("newPhone").value.trim(),
+firstVisit:document.getElementById("newFirstVisit").value,
+lastVisit:document.getElementById("newLastVisit").value,
+nextVisit:document.getElementById("newNextVisit").value,
+visitCount:document.getElementById("newVisitCount").value,
+memo:document.getElementById("newMemo").value.trim(),
+isNg:document.getElementById("newIsNg").checked,
+ngReason:document.getElementById("newNgReason").value.trim()
+};
+
+}
+
+function createCustomerFromEditWindow(newCustomer){
+
+const countValue = Number(newCustomer.visitCount);
+const now = new Date().toLocaleString();
+
+customers.unshift({
+id:Date.now(),
+name:newCustomer.name,
+phone:newCustomer.phone,
+firstVisit:newCustomer.firstVisit,
+lastVisit:newCustomer.lastVisit,
+nextVisit:newCustomer.nextVisit,
+visitCount:Number.isFinite(countValue) && countValue > 0 ? countValue : 1,
+memo:newCustomer.memo,
+isNg:newCustomer.isNg,
+ngReason:newCustomer.ngReason,
+created:now,
+updated:now
+});
+
+saveToStorage();
+renderCustomers();
+
+}
+
+function deleteCustomer(id){
+
+if(!confirm("削除しますか？")) return;
+
+customers = customers.filter(c=>c.id!==id);
+
+saveToStorage();
+renderCustomers();
+
+}
+
+function editCustomer(id){
+
+const c = customers.find(x=>x.id===id);
+
+if(!c){
+alert("編集する顧客データが見つかりません");
+return;
+}
+
+editingCustomerId = id;
+
+document.getElementById("editName").value = c.name || "";
+document.getElementById("editPhone").value = c.phone || "";
+document.getElementById("editFirstVisit").value = c.firstVisit || "";
+document.getElementById("editLastVisit").value = c.lastVisit || "";
+document.getElementById("editNextVisit").value = c.nextVisit || "";
+document.getElementById("editVisitCount").value = c.visitCount || 1;
+document.getElementById("editMemo").value = c.memo || "";
+document.getElementById("editIsNg").checked = c.isNg === true;
+document.getElementById("editNgReason").value = c.ngReason || "";
+
+const modal = document.getElementById("editCustomerModal");
+
+modal.classList.add("active");
+modal.setAttribute("aria-hidden", "false");
+document.body.classList.add("modal-open");
+document.getElementById("editName").focus();
+
+}
+
+function closeEditCustomerModal(){
+
+const modal = document.getElementById("editCustomerModal");
+
+modal.classList.remove("active");
+modal.setAttribute("aria-hidden", "true");
+document.body.classList.remove("modal-open");
+editingCustomerId = null;
+
+}
+
+function getEditedCustomerFromModal(){
+
+return {
+name:document.getElementById("editName").value.trim(),
+phone:document.getElementById("editPhone").value.trim(),
+firstVisit:document.getElementById("editFirstVisit").value,
+lastVisit:document.getElementById("editLastVisit").value,
+nextVisit:document.getElementById("editNextVisit").value,
+visitCount:document.getElementById("editVisitCount").value,
+memo:document.getElementById("editMemo").value.trim(),
+isNg:document.getElementById("editIsNg").checked,
+ngReason:document.getElementById("editNgReason").value.trim()
+};
+
+}
+
+function updateCustomerFromEditWindow(id, editedCustomer){
+
+const c = customers.find(x=>x.id===id);
+
+if(!c){
+alert("編集する顧客データが見つかりません");
+return;
+}
+
+c.name = editedCustomer.name;
+c.phone = editedCustomer.phone;
+c.firstVisit = editedCustomer.firstVisit;
+c.lastVisit = editedCustomer.lastVisit;
+c.nextVisit = editedCustomer.nextVisit;
+c.visitCount = Number(editedCustomer.visitCount) || 1;
+c.memo = editedCustomer.memo;
+c.isNg = editedCustomer.isNg;
+c.ngReason = editedCustomer.ngReason;
+c.updated = new Date().toLocaleString();
+
+saveToStorage();
+renderCustomers();
+
+}
+
+function addVisit(id){
+
+const c = customers.find(x=>x.id===id);
+
+const today = new Date().toISOString().slice(0,10);
+
+if(!confirm("本日を最終来店日として記録し、来店回数を1回増やしますか？")) return;
+
+if(!c.firstVisit) c.firstVisit = today;
+c.lastVisit = today;
+c.visitCount = Number(c.visitCount || 0) + 1;
+c.updated = new Date().toLocaleString();
+
+saveToStorage();
+renderCustomers();
+
+}
+
+function daysFrom(dateText){
+
+if(!dateText) return "-";
+
+const today = new Date();
+today.setHours(0,0,0,0);
+
+const target = new Date(dateText);
+target.setHours(0,0,0,0);
+
+const diff = Math.floor((today - target) / (1000 * 60 * 60 * 24));
+
+if(isNaN(diff)) return "-";
+
+return diff + "日";
+
+}
+
+function getSortDate(value){
+if(!value) return 0;
+const time = new Date(value).getTime();
+return isNaN(time) ? 0 : time;
+}
+
+function showNgOnly(){
+ngOnly = true;
+renderCustomers();
+}
+
+function showAllCustomers(){
+ngOnly = false;
+renderCustomers();
+}
+
+function renderCustomers(){
+
+const nameSearch = document.getElementById("searchName").value.toLowerCase();
+const phoneSearch = document.getElementById("searchPhone").value;
+const monthSearch = document.getElementById("searchMonth").value;
+const memoSearch = document.getElementById("searchMemo").value.toLowerCase();
+const sortMode = document.getElementById("sortMode").value;
+
+let html="";
+
+let filtered = customers.filter(c=>{
+
+const nameMatch = (c.name || "").toLowerCase().includes(nameSearch);
+const phoneMatch = (c.phone || "").includes(phoneSearch);
+
+const monthMatch =
+!monthSearch ||
+(c.lastVisit &&
+c.lastVisit.startsWith(monthSearch));
+
+const memoMatch = (c.memo || "").toLowerCase().includes(memoSearch);
+const ngMatch = !ngOnly || c.isNg === true;
+
+return nameMatch && phoneMatch && monthMatch && memoMatch && ngMatch;
+
+});
+
+filtered.sort((a,b)=>{
+if(sortMode === "lastVisitAsc"){
+return getSortDate(a.lastVisit) - getSortDate(b.lastVisit);
+}
+if(sortMode === "visitCountDesc"){
+return Number(b.visitCount || 0) - Number(a.visitCount || 0);
+}
+if(sortMode === "createdDesc"){
+return Number(b.id || 0) - Number(a.id || 0);
+}
+return getSortDate(b.lastVisit) - getSortDate(a.lastVisit);
+});
+
+html += `<p class="small">表示件数: ${filtered.length}件 ${ngOnly ? "（NG一覧）" : ""}</p>`;
+
+filtered.forEach(c=>{
+
+html += `
+<div class="customer ${c.isNg ? 'ng' : ''}">
+
+<b>${escapeHtml(c.name || "")}</b><br>
+
+<span class="badge">📞 ${escapeHtml(c.phone || "-")}</span>
+<span class="badge">🔁 来店 ${c.visitCount || 0}回</span>
+<span class="badge">⏳ 最終来店から ${daysFrom(c.lastVisit)}</span>
+${c.isNg ? '<span class="ng-label">⚠️ NG</span>' : ''}
+<br>
+
+📅 初回来店: ${escapeHtml(c.firstVisit || "-")}<br>
+📅 最終来店: ${escapeHtml(c.lastVisit || "-")}<br>
+📌 次回予約: ${escapeHtml(c.nextVisit || "-")}<br>
+
+<div class="memo">📝 ${escapeHtml(c.memo || "-").replace(/\n/g,"<br>")}</div>
+${c.isNg ? `<div class="memo"><b>⚠️ NG理由:</b> ${escapeHtml(c.ngReason || "-").replace(/\n/g,"<br>")}</div>` : ""}
+
+<span class="small">
+🕒 登録: ${escapeHtml(c.created || "-")}<br>
+🔧 更新: ${escapeHtml(c.updated || "-")}
+</span>
+
+<div class="actions">
+<button onclick="addVisit(${c.id})">本日来店</button>
+<button onclick="editCustomer(${c.id})">編集</button>
+<button class="danger" onclick="deleteCustomer(${c.id})">削除</button>
+</div>
+
+</div>
+`;
+
+});
+
+document.getElementById("customerList").innerHTML = html;
+
+}
+
+function escapeHtml(text){
+
+return String(text)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;")
+.replace(/'/g,"&#039;");
+
+}
+
+function openSettingsWindow(){
+
+const modal = document.getElementById("settingsModal");
+
+modal.classList.add("active");
+modal.setAttribute("aria-hidden", "false");
+document.body.classList.add("modal-open");
+
+}
+
+function closeSettingsModal(){
+
+const modal = document.getElementById("settingsModal");
+
+modal.classList.remove("active");
+modal.setAttribute("aria-hidden", "true");
+document.body.classList.remove("modal-open");
+
+}
+
+function requestBackupLoadFromSettings(){
+
+const fileInput = document.getElementById("settingsBackupFile");
+
+if(!confirm("バックアップファイルを読み込みますか？現在のデータは上書きされます。")) return;
+
+fileInput.dataset.confirmed = "yes";
+fileInput.click();
+
+}
+
+function downloadBackup(dialogWindow){
+
+const dialog = dialogWindow || window;
+
+if(!dialog.confirm("顧客データのバックアップファイルを保存しますか？")) return;
+
+const blob =
+new Blob([JSON.stringify(customers,null,2)], {type:"application/json"});
+
+const a = document.createElement("a");
+const today = new Date().toISOString().slice(0,10);
+
+a.href = URL.createObjectURL(blob);
+a.download = "customer_backup_" + today + ".json";
+a.click();
+
+}
+
+function loadBackupFromFile(file, dialogWindow, alreadyConfirmed){
+
+const dialog = dialogWindow || window;
+
+if(!file) return;
+
+if(!alreadyConfirmed && !dialog.confirm("バックアップファイルを読み込みますか？現在のデータは上書きされます。")) return;
+
+const reader = new FileReader();
+
+reader.onload = e=>{
+
+try{
+customers = JSON.parse(e.target.result);
+saveToStorage();
+renderCustomers();
+dialog.alert("復元完了");
+}catch(err){
+dialog.alert("読み込みに失敗しました");
+}
+
+};
+
+reader.readAsText(file);
+
+}
+
+document.getElementById("newCustomerForm").addEventListener("submit", event=>{
+event.preventDefault();
+
+const newCustomer = getNewCustomerFromModal();
+
+if(!newCustomer.name){
+alert("名前を入力してください");
+return;
+}
+
+const phoneInput = document.getElementById("newPhone");
+
+if(!checkHalfWidthPhoneInput(phoneInput)) return;
+
+newCustomer.phone = phoneInput.value.trim();
+
+if(!confirm(`「${newCustomer.name}」さんを新しい顧客データとして保存しますか？`)) return;
+
+createCustomerFromEditWindow(newCustomer);
+closeNewCustomerModal();
+resetNewCustomerForm();
+});
+
+document.getElementById("editCustomerForm").addEventListener("submit", event=>{
+event.preventDefault();
+
+if(editingCustomerId === null){
+alert("編集する顧客データが見つかりません");
+return;
+}
+
+const editedCustomer = getEditedCustomerFromModal();
+
+if(!editedCustomer.name){
+alert("名前を入力してください");
+return;
+}
+
+const phoneInput = document.getElementById("editPhone");
+
+if(!checkHalfWidthPhoneInput(phoneInput)) return;
+
+editedCustomer.phone = phoneInput.value.trim();
+
+if(!confirm(`「${editedCustomer.name}」さんの編集内容を保存しますか？`)) return;
+
+updateCustomerFromEditWindow(editingCustomerId, editedCustomer);
+closeEditCustomerModal();
+});
+
+document.getElementById("settingsBackupFile").addEventListener("change", event=>{
+const confirmed = event.target.dataset.confirmed === "yes";
+event.target.dataset.confirmed = "";
+loadBackupFromFile(event.target.files[0], window, confirmed);
+event.target.value = "";
+});
+
+renderCustomers();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+
+</script>
+
+</body>
+</html>
