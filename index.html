@@ -304,8 +304,14 @@ padding:10px;
 <label>最終来店日</label>
 <input id="newLastVisit" type="date">
 
-<label>次回予約日</label>
-<input id="newNextVisit" type="date">
+<label>支払い金額</label>
+<input id="newPaymentAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="支払い金額（円）">
+
+<label>店落ち</label>
+<input id="newShopAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="店落ち（円）">
+
+<label>女給</label>
+<input id="newStaffAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="女給（円）">
 
 <label>来店回数</label>
 <input id="newVisitCount" type="number" min="0" placeholder="来店回数">
@@ -349,8 +355,14 @@ NG顧客にする
 <label>最終来店日</label>
 <input id="editLastVisit" type="date">
 
-<label>次回予約日</label>
-<input id="editNextVisit" type="date">
+<label>支払い金額</label>
+<input id="editPaymentAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="支払い金額（円）">
+
+<label>店落ち</label>
+<input id="editShopAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="店落ち（円）">
+
+<label>女給</label>
+<input id="editStaffAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="女給（円）">
 
 <label>来店回数</label>
 <input id="editVisitCount" type="number" min="0">
@@ -371,6 +383,53 @@ NG顧客にする
 <button type="button" class="sub" onclick="closeEditCustomerModal()">キャンセル</button>
 </div>
 </form>
+</div>
+</div>
+
+<div id="visitDateModal" class="modal-overlay" aria-hidden="true">
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="visitDateTitle">
+<div class="modal-header">
+<h2 id="visitDateTitle">来店日を選択</h2>
+<button type="button" class="sub" onclick="closeVisitDateModal()">閉じる</button>
+</div>
+
+<label>来店日</label>
+<input id="visitDateInput" type="date" onchange="openVisitMemoWindow()">
+
+<p class="small">カレンダーから日付を選ぶと、メモ入力画面が開きます。</p>
+</div>
+</div>
+
+<div id="visitMemoModal" class="modal-overlay" aria-hidden="true">
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="visitMemoTitle">
+<div class="modal-header">
+<h2 id="visitMemoTitle">来店メモ</h2>
+<button type="button" class="sub" onclick="closeVisitMemoModal()">閉じる</button>
+</div>
+
+<p id="selectedVisitDate" class="small"></p>
+<label>メモ</label>
+<textarea id="visitMemoInput" rows="6" placeholder="施術内容・会話内容・注意点など"></textarea>
+
+<div class="modal-actions">
+<button type="button" onclick="saveVisitRecord()">保存</button>
+<button type="button" class="sub" onclick="closeVisitMemoModal()">キャンセル</button>
+</div>
+</div>
+</div>
+
+<div id="visitHistoryModal" class="modal-overlay" aria-hidden="true">
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="visitHistoryTitle">
+<div class="modal-header">
+<h2 id="visitHistoryTitle">来店履歴</h2>
+<button type="button" class="sub" onclick="closeVisitHistoryModal()">閉じる</button>
+</div>
+
+<div id="visitHistoryContent"></div>
+
+<div class="modal-actions">
+<button type="button" class="sub" onclick="closeVisitHistoryModal()">閉じる</button>
+</div>
 </div>
 </div>
 
@@ -400,6 +459,8 @@ JSON.parse(localStorage.getItem("customers")) ||
 
 let ngOnly = false;
 let editingCustomerId = null;
+let visitCustomerId = null;
+let selectedVisitDateValue = "";
 
 function saveToStorage(){
 localStorage.setItem("customers_v4", JSON.stringify(customers));
@@ -459,7 +520,9 @@ name:document.getElementById("newName").value.trim(),
 phone:document.getElementById("newPhone").value.trim(),
 firstVisit:document.getElementById("newFirstVisit").value,
 lastVisit:document.getElementById("newLastVisit").value,
-nextVisit:document.getElementById("newNextVisit").value,
+paymentAmount:document.getElementById("newPaymentAmount").value,
+shopAmount:document.getElementById("newShopAmount").value,
+staffAmount:document.getElementById("newStaffAmount").value,
 visitCount:document.getElementById("newVisitCount").value,
 memo:document.getElementById("newMemo").value.trim(),
 isNg:document.getElementById("newIsNg").checked,
@@ -479,7 +542,9 @@ name:newCustomer.name,
 phone:newCustomer.phone,
 firstVisit:newCustomer.firstVisit,
 lastVisit:newCustomer.lastVisit,
-nextVisit:newCustomer.nextVisit,
+paymentAmount:Number(newCustomer.paymentAmount) || 0,
+shopAmount:Number(newCustomer.shopAmount) || 0,
+staffAmount:Number(newCustomer.staffAmount) || 0,
 visitCount:Number.isFinite(countValue) && countValue > 0 ? countValue : 1,
 memo:newCustomer.memo,
 isNg:newCustomer.isNg,
@@ -519,7 +584,9 @@ document.getElementById("editName").value = c.name || "";
 document.getElementById("editPhone").value = c.phone || "";
 document.getElementById("editFirstVisit").value = c.firstVisit || "";
 document.getElementById("editLastVisit").value = c.lastVisit || "";
-document.getElementById("editNextVisit").value = c.nextVisit || "";
+document.getElementById("editPaymentAmount").value = c.paymentAmount ?? "";
+document.getElementById("editShopAmount").value = c.shopAmount ?? "";
+document.getElementById("editStaffAmount").value = c.staffAmount ?? "";
 document.getElementById("editVisitCount").value = c.visitCount || 1;
 document.getElementById("editMemo").value = c.memo || "";
 document.getElementById("editIsNg").checked = c.isNg === true;
@@ -552,7 +619,9 @@ name:document.getElementById("editName").value.trim(),
 phone:document.getElementById("editPhone").value.trim(),
 firstVisit:document.getElementById("editFirstVisit").value,
 lastVisit:document.getElementById("editLastVisit").value,
-nextVisit:document.getElementById("editNextVisit").value,
+paymentAmount:document.getElementById("editPaymentAmount").value,
+shopAmount:document.getElementById("editShopAmount").value,
+staffAmount:document.getElementById("editStaffAmount").value,
 visitCount:document.getElementById("editVisitCount").value,
 memo:document.getElementById("editMemo").value.trim(),
 isNg:document.getElementById("editIsNg").checked,
@@ -574,7 +643,9 @@ c.name = editedCustomer.name;
 c.phone = editedCustomer.phone;
 c.firstVisit = editedCustomer.firstVisit;
 c.lastVisit = editedCustomer.lastVisit;
-c.nextVisit = editedCustomer.nextVisit;
+c.paymentAmount = Number(editedCustomer.paymentAmount) || 0;
+c.shopAmount = Number(editedCustomer.shopAmount) || 0;
+c.staffAmount = Number(editedCustomer.staffAmount) || 0;
 c.visitCount = Number(editedCustomer.visitCount) || 1;
 c.memo = editedCustomer.memo;
 c.isNg = editedCustomer.isNg;
@@ -604,6 +675,148 @@ renderCustomers();
 
 }
 
+function openVisitDateWindow(id){
+
+const c = customers.find(x=>x.id===id);
+
+if(!c){
+alert("顧客データが見つかりません");
+return;
+}
+
+visitCustomerId = id;
+selectedVisitDateValue = "";
+
+const dateInput = document.getElementById("visitDateInput");
+dateInput.value = "";
+
+const modal = document.getElementById("visitDateModal");
+modal.classList.add("active");
+modal.setAttribute("aria-hidden", "false");
+document.body.classList.add("modal-open");
+dateInput.focus();
+
+if(typeof dateInput.showPicker === "function"){
+try{ dateInput.showPicker(); }catch(error){}
+}
+
+}
+
+function closeVisitDateModal(resetCustomer = true){
+
+const modal = document.getElementById("visitDateModal");
+modal.classList.remove("active");
+modal.setAttribute("aria-hidden", "true");
+
+if(resetCustomer){
+visitCustomerId = null;
+selectedVisitDateValue = "";
+document.body.classList.remove("modal-open");
+}
+
+}
+
+function openVisitMemoWindow(){
+
+const dateInput = document.getElementById("visitDateInput");
+if(!dateInput.value || visitCustomerId === null) return;
+
+selectedVisitDateValue = dateInput.value;
+closeVisitDateModal(false);
+
+document.getElementById("selectedVisitDate").textContent = "来店日: " + selectedVisitDateValue;
+document.getElementById("visitMemoInput").value = "";
+
+const modal = document.getElementById("visitMemoModal");
+modal.classList.add("active");
+modal.setAttribute("aria-hidden", "false");
+document.body.classList.add("modal-open");
+document.getElementById("visitMemoInput").focus();
+
+}
+
+function closeVisitMemoModal(){
+
+const modal = document.getElementById("visitMemoModal");
+modal.classList.remove("active");
+modal.setAttribute("aria-hidden", "true");
+document.body.classList.remove("modal-open");
+visitCustomerId = null;
+selectedVisitDateValue = "";
+
+}
+
+function saveVisitRecord(){
+
+const c = customers.find(x=>x.id===visitCustomerId);
+
+if(!c || !selectedVisitDateValue){
+alert("来店日を保存できませんでした");
+return;
+}
+
+const memo = document.getElementById("visitMemoInput").value.trim();
+
+if(!Array.isArray(c.visitRecords)) c.visitRecords = [];
+
+c.visitRecords.push({
+date:selectedVisitDateValue,
+memo:memo
+});
+
+c.visitRecords.sort((a,b)=>getSortDate(b.date) - getSortDate(a.date));
+
+if(!c.firstVisit || getSortDate(selectedVisitDateValue) < getSortDate(c.firstVisit)){
+c.firstVisit = selectedVisitDateValue;
+}
+
+if(!c.lastVisit || getSortDate(selectedVisitDateValue) > getSortDate(c.lastVisit)){
+c.lastVisit = selectedVisitDateValue;
+}
+
+c.visitCount = Number(c.visitCount || 0) + 1;
+c.updated = new Date().toLocaleString();
+
+saveToStorage();
+renderCustomers();
+closeVisitMemoModal();
+
+}
+
+function openVisitHistoryWindow(id){
+
+const c = customers.find(x=>String(x.id)===String(id));
+
+if(!c){
+alert("顧客データが見つかりません");
+return;
+}
+
+const records = Array.isArray(c.visitRecords)
+? [...c.visitRecords].sort((a,b)=>getSortDate(b.date) - getSortDate(a.date))
+: [];
+
+document.getElementById("visitHistoryTitle").textContent = (c.name || "顧客") + "さんの来店履歴";
+document.getElementById("visitHistoryContent").innerHTML = records.length
+? records.map(record=>`<div class="card"><b>📅 ${escapeHtml(record.date || "-")}</b><div class="memo">📝 ${escapeHtml(record.memo || "メモなし").replace(/\n/g,"<br>")}</div></div>`).join("")
+: `<p class="small">来店履歴はまだありません。</p>`;
+
+const modal = document.getElementById("visitHistoryModal");
+modal.classList.add("active");
+modal.setAttribute("aria-hidden", "false");
+document.body.classList.add("modal-open");
+
+}
+
+function closeVisitHistoryModal(){
+
+const modal = document.getElementById("visitHistoryModal");
+modal.classList.remove("active");
+modal.setAttribute("aria-hidden", "true");
+document.body.classList.remove("modal-open");
+
+}
+
 function daysFrom(dateText){
 
 if(!dateText) return "-";
@@ -626,6 +839,12 @@ function getSortDate(value){
 if(!value) return 0;
 const time = new Date(value).getTime();
 return isNaN(time) ? 0 : time;
+}
+
+function formatPaymentAmount(value){
+const amount = Number(value);
+if(!Number.isFinite(amount)) return "-";
+return "¥" + amount.toLocaleString("ja-JP");
 }
 
 function showNgOnly(){
@@ -682,6 +901,10 @@ html += `<p class="small">表示件数: ${filtered.length}件 ${ngOnly ? "（NG�
 
 filtered.forEach(c=>{
 
+const visitHistoryButton = Array.isArray(c.visitRecords) && c.visitRecords.length
+? `<button class="sub" onclick="openVisitHistoryWindow(${c.id})">来店履歴</button>`
+: "";
+
 html += `
 <div class="customer ${c.isNg ? 'ng' : ''}">
 
@@ -695,7 +918,9 @@ ${c.isNg ? '<span class="ng-label">⚠️ NG</span>' : ''}
 
 📅 初回来店: ${escapeHtml(c.firstVisit || "-")}<br>
 📅 最終来店: ${escapeHtml(c.lastVisit || "-")}<br>
-📌 次回予約: ${escapeHtml(c.nextVisit || "-")}<br>
+💴 支払い金額: ${formatPaymentAmount(c.paymentAmount)}<br>
+🏬 店落ち: ${formatPaymentAmount(c.shopAmount)}<br>
+👤 女給: ${formatPaymentAmount(c.staffAmount)}<br>
 
 <div class="memo">📝 ${escapeHtml(c.memo || "-").replace(/\n/g,"<br>")}</div>
 ${c.isNg ? `<div class="memo"><b>⚠️ NG理由:</b> ${escapeHtml(c.ngReason || "-").replace(/\n/g,"<br>")}</div>` : ""}
@@ -706,6 +931,8 @@ ${c.isNg ? `<div class="memo"><b>⚠️ NG理由:</b> ${escapeHtml(c.ngReason ||
 </span>
 
 <div class="actions">
+<button onclick="openVisitDateWindow(${c.id})">来店日を追加</button>
+${visitHistoryButton}
 <button onclick="addVisit(${c.id})">本日来店</button>
 <button onclick="editCustomer(${c.id})">編集</button>
 <button class="danger" onclick="deleteCustomer(${c.id})">削除</button>
