@@ -433,6 +433,26 @@ NG顧客にする
 </div>
 </div>
 
+<div id="editVisitRecordModal" class="modal-overlay" aria-hidden="true">
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="editVisitRecordTitle">
+<div class="modal-header">
+<h2 id="editVisitRecordTitle">来店履歴を編集</h2>
+<button type="button" class="sub" onclick="closeEditVisitRecordModal()">閉じる</button>
+</div>
+
+<label>来店日</label>
+<input id="editVisitRecordDate" type="date">
+
+<label>メモ</label>
+<textarea id="editVisitRecordMemo" rows="6" placeholder="施術内容・会話内容・注意点など"></textarea>
+
+<div class="modal-actions">
+<button type="button" onclick="saveEditedVisitRecord()">保存</button>
+<button type="button" class="sub" onclick="closeEditVisitRecordModal()">キャンセル</button>
+</div>
+</div>
+</div>
+
 <div id="settingsModal" class="modal-overlay" aria-hidden="true">
 <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
 <div class="modal-header">
@@ -461,6 +481,8 @@ let ngOnly = false;
 let editingCustomerId = null;
 let visitCustomerId = null;
 let selectedVisitDateValue = "";
+let editingVisitCustomerId = null;
+let editingVisitRecordIndex = null;
 
 function saveToStorage(){
 localStorage.setItem("customers_v4", JSON.stringify(customers));
@@ -793,18 +815,82 @@ return;
 }
 
 const records = Array.isArray(c.visitRecords)
-? [...c.visitRecords].sort((a,b)=>getSortDate(b.date) - getSortDate(a.date))
+? c.visitRecords.map((record,index)=>({record,index})).sort((a,b)=>getSortDate(b.record.date) - getSortDate(a.record.date))
 : [];
 
 document.getElementById("visitHistoryTitle").textContent = (c.name || "顧客") + "さんの来店履歴";
 document.getElementById("visitHistoryContent").innerHTML = records.length
-? records.map(record=>`<div class="card"><b>📅 ${escapeHtml(record.date || "-")}</b><div class="memo">📝 ${escapeHtml(record.memo || "メモなし").replace(/\n/g,"<br>")}</div></div>`).join("")
+? records.map(item=>`<div class="card"><b>📅 ${escapeHtml(item.record.date || "-")}</b><div class="memo">📝 ${escapeHtml(item.record.memo || "メモなし").replace(/\n/g,"<br>")}</div><div class="actions"><button type="button" onclick='openEditVisitRecordWindow(${JSON.stringify(c.id)},${item.index})'>編集</button></div></div>`).join("")
 : `<p class="small">来店履歴はまだありません。</p>`;
 
 const modal = document.getElementById("visitHistoryModal");
 modal.classList.add("active");
 modal.setAttribute("aria-hidden", "false");
 document.body.classList.add("modal-open");
+
+}
+
+function openEditVisitRecordWindow(customerId, recordIndex){
+
+const c = customers.find(x=>String(x.id)===String(customerId));
+const record = c && Array.isArray(c.visitRecords) ? c.visitRecords[recordIndex] : null;
+
+if(!record){
+alert("編集する来店履歴が見つかりません");
+return;
+}
+
+editingVisitCustomerId = c.id;
+editingVisitRecordIndex = recordIndex;
+
+closeVisitHistoryModal();
+
+document.getElementById("editVisitRecordDate").value = record.date || "";
+document.getElementById("editVisitRecordMemo").value = record.memo || "";
+
+const modal = document.getElementById("editVisitRecordModal");
+modal.classList.add("active");
+modal.setAttribute("aria-hidden", "false");
+document.body.classList.add("modal-open");
+
+}
+
+function closeEditVisitRecordModal(){
+
+const modal = document.getElementById("editVisitRecordModal");
+modal.classList.remove("active");
+modal.setAttribute("aria-hidden", "true");
+document.body.classList.remove("modal-open");
+editingVisitCustomerId = null;
+editingVisitRecordIndex = null;
+
+}
+
+function saveEditedVisitRecord(){
+
+const c = customers.find(x=>String(x.id)===String(editingVisitCustomerId));
+const record = c && Array.isArray(c.visitRecords) ? c.visitRecords[editingVisitRecordIndex] : null;
+const date = document.getElementById("editVisitRecordDate").value;
+
+if(!record){
+alert("編集する来店履歴が見つかりません");
+return;
+}
+
+if(!date){
+alert("来店日を入力してください");
+return;
+}
+
+record.date = date;
+record.memo = document.getElementById("editVisitRecordMemo").value.trim();
+c.updated = new Date().toLocaleString();
+
+const customerId = c.id;
+saveToStorage();
+renderCustomers();
+closeEditVisitRecordModal();
+openVisitHistoryWindow(customerId);
 
 }
 
